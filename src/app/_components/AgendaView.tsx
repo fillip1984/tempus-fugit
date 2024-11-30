@@ -234,31 +234,33 @@ export default function AgendaView({ day }: { day: Day }) {
   }, [agendaRef]);
 
   return (
-    <div className="flex min-w-[300px] flex-col rounded border border-white p-2">
-      <h2>{day.name}</h2>
-      <div ref={agendaRef} className="mx-2 flex flex-1">
+    <div className="flex min-w-[400px] flex-col overflow-hidden rounded border border-white">
+      <div className="p-2">
+        <h2>{day.name}</h2>
+      </div>
+      <div ref={agendaRef} className="flex flex-1 overflow-y-auto">
         {/* Draw agenda slot headers (shows the time for each slow, displayed on the left or head of slot) */}
-        <div className="flex flex-col">
+        <div className="flex flex-col pl-2">
           {hours.map((hour) => (
             <div
               key={hour.toISOString()}
               data-timeslot={format(hour, "H")}
               className="flex">
-              <div className="border-grey/30 flex h-20 w-16 flex-col items-end border-t pr-1">
-                <span className="-mb-1">{format(hour, "HH:mm")}</span>
-                {/* <span className="text-sm text-gray-400">:15</span>
-                <span className="text-sm text-gray-400">:30</span>
-                <span className="text-sm text-gray-400">:45</span> */}
+              <div className="flex h-10 flex-col items-end border-t border-gray-400/30 pr-1">
+                <span className="-mb-1 text-xs">{format(hour, "HH:mm")}</span>
+                {/* <span className="text-xs text-gray-400">:15</span>
+                <span className="text-xs text-gray-400">:30</span>
+                <span className="text-xs text-gray-400">:45</span> */}
               </div>
             </div>
           ))}
         </div>
 
         {/* Draw agenda slots */}
-        <div className="relative flex flex-1 flex-col">
+        <div className="relative flex flex-1 flex-col pr-2">
           {hours.map((hour) => (
             <div key={hour.toISOString()} className="flex">
-              <div className="border-grey/30 flex h-20 flex-1 items-center justify-center border-t"></div>
+              <div className="flex h-10 flex-1 items-center justify-center border-t border-gray-400/30"></div>
             </div>
           ))}
 
