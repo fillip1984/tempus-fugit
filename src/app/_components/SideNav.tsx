@@ -6,7 +6,7 @@ import { BsChevronDoubleRight } from "react-icons/bs";
 import { FaCalendarDay, FaTimeline } from "react-icons/fa6";
 
 export default function SideNav() {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <nav

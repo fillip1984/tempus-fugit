@@ -1,8 +1,14 @@
 import {
+  addDays,
   eachHourOfInterval,
   endOfDay,
   format,
   getHours,
+  interval,
+  intervalToDuration,
+  isAfter,
+  isBefore,
+  isEqual,
   setHours,
   startOfDay,
 } from "date-fns";
@@ -46,14 +52,16 @@ export default function AgendaView({ day }: { day: Day }) {
         );
       }
       const hour = parseInt(timeslotDiv.dataset.timeslot);
-      calculatedTimeslots.push({
+      const calculatedTimeSlot = {
         hour,
         date: setHours(startOfDay(new Date()), hour),
         top: timeslotDiv.getBoundingClientRect().top,
         bottom:
           timeslotDiv.getBoundingClientRect().top +
           timeslotDiv.getBoundingClientRect().height,
-      });
+      };
+
+      calculatedTimeslots.push(calculatedTimeSlot);
     });
 
     setTimeslots(calculatedTimeslots);
@@ -62,71 +70,108 @@ export default function AgendaView({ day }: { day: Day }) {
   const [events, setEvents] = useState<AgendaEvent[]>([
     {
       id: "1",
-      start: setHours(startOfDay(new Date()), 2),
-      end: setHours(startOfDay(new Date()), 8),
-      description: "First",
+      start: addDays(setHours(startOfDay(new Date()), 21), -1),
+      end: setHours(startOfDay(new Date()), 6),
+      description: "Sleep",
       left: 0,
       right: 0,
       zIndex: 0,
     },
     {
       id: "2",
-      start: setHours(startOfDay(new Date()), 1),
-      end: setHours(startOfDay(new Date()), 4),
-      description: "Second",
+      start: setHours(startOfDay(new Date()), 7),
+      end: setHours(startOfDay(new Date()), 17),
+      description: "Work",
       left: 0,
       right: 0,
       zIndex: 0,
     },
     {
       id: "3",
-      start: setHours(startOfDay(new Date()), 2),
-      end: setHours(startOfDay(new Date()), 5),
-      description: "Third",
+      start: setHours(startOfDay(new Date()), 21),
+      end: addDays(setHours(startOfDay(new Date()), 6), 1),
+      description: "Sleep",
       left: 0,
       right: 0,
       zIndex: 0,
     },
-    {
-      id: "4",
-      start: setHours(startOfDay(new Date()), 6),
-      end: setHours(startOfDay(new Date()), 10),
-      description: "Fourth",
-      left: 0,
-      right: 0,
-      zIndex: 0,
-    },
-    {
-      id: "5",
-      start: setHours(startOfDay(new Date()), 9),
-      end: setHours(startOfDay(new Date()), 10),
-      description: "Fifth",
-      left: 0,
-      right: 0,
-      zIndex: 0,
-    },
+    // {
+    //   id: "3",
+    //   start: setHours(startOfDay(new Date()), 2),
+    //   end: setHours(startOfDay(new Date()), 5),
+    //   description: "Third",
+    //   left: 0,
+    //   right: 0,
+    //   zIndex: 0,
+    // },
+    // {
+    //   id: "4",
+    //   start: setHours(startOfDay(new Date()), 6),
+    //   end: setHours(startOfDay(new Date()), 10),
+    //   description: "Fourth",
+    //   left: 0,
+    //   right: 0,
+    //   zIndex: 0,
+    // },
+    // {
+    //   id: "5",
+    //   start: setHours(startOfDay(new Date()), 9),
+    //   end: setHours(startOfDay(new Date()), 10),
+    //   description: "Fifth",
+    //   left: 0,
+    //   right: 0,
+    //   zIndex: 0,
+    // },
   ]);
 
   const calculateHourBasedOnPosition = (clientY: number) => {
-    const clientYOffset = clientY - agendaTopOffset;
+    // const clientYOffset = clientY;
+    // const oneOClock = timeslots.find((ts) => ts.hour === 1);
+    // console.log({
+    //   h: oneOClock?.hour,
+    //   t: oneOClock?.top,
+    //   b: oneOClock?.bottom,
+    //   clientY,
+    // });
     const timeslot = timeslots?.find(
-      (timeslot) =>
-        timeslot.top <= clientYOffset && timeslot.bottom >= clientYOffset,
+      (timeslot) => timeslot.top <= clientY && timeslot.bottom >= clientY,
     );
+    // console.log({ h: timeslot?.hour, top: timeslot?.top, b: timeslot?.bottom });
 
     return timeslot?.hour;
   };
 
   const calculatePositionBaseOnHour = (start: Date, end: Date) => {
-    const firstTimeslot = timeslots.find(
-      (timeslot) => timeslot.hour === getHours(start),
+    let firstTimeslot = timeslots.find((timeslot) =>
+      isEqual(timeslot.date, start),
     );
-    const secondTimeslot = timeslots.find(
-      (timeslot) => timeslot.hour === getHours(end),
+    const secondTimeslot = timeslots.find((timeslot) =>
+      isEqual(timeslot.date, end),
     );
+
+    if (!firstTimeslot && timeslots[0] && isBefore(start, timeslots[0].date)) {
+      // event started yesterday
+      firstTimeslot = timeslots[0];
+    }
+
+    if (
+      firstTimeslot &&
+      !secondTimeslot &&
+      timeslots[timeslots.length - 1] &&
+      isAfter(end, timeslots[timeslots.length - 1].date)
+    ) {
+      // event ends tomorrow
+      return {
+        top: firstTimeslot.top - agendaTopOffset,
+        bottom: timeslots[timeslots.length - 1].bottom - agendaTopOffset,
+      };
+    }
 
     // timeslots not found, default to the top of the agenda
     if (!firstTimeslot || !secondTimeslot) {
+      // console.error(
+      //   "Unable to determine timeslot, defaulting to top of agenda",
+      // );
       return { top: agendaTopOffset, bottom: agendaTopOffset };
     }
 
@@ -135,6 +180,36 @@ export default function AgendaView({ day }: { day: Day }) {
       bottom: secondTimeslot.top - agendaTopOffset,
     };
   };
+
+  const calculateFreeTime = () => {
+    const summary = events.reduce(
+      (map, event) => {
+        const effectiveStart = isAfter(startOfDay(new Date()), event.start)
+          ? startOfDay(new Date())
+          : event.start;
+        const effectiveEnd = isBefore(
+          addDays(startOfDay(new Date()), 1),
+          event.end,
+        )
+          ? addDays(startOfDay(new Date()), 1)
+          : event.end;
+        map[event.description] =
+          (map[event.description] || 0) +
+          (intervalToDuration(interval(effectiveStart, effectiveEnd)).hours ??
+            0);
+        return map;
+      },
+      {} as Record<string, number>,
+    );
+    const usedHours = Object.values(summary).reduce((acc, val) => acc + val, 0);
+    summary["Free"] = 24 - usedHours;
+    console.log({ summary });
+    return summary["Free"];
+  };
+  const [freeTime, setFreeTime] = useState(0);
+  useEffect(() => {
+    setFreeTime(calculateFreeTime());
+  }, [events]);
 
   const calculateWidthAndElevationPosition = () => {
     // console.log("calc width and elevation position run");
@@ -147,9 +222,9 @@ export default function AgendaView({ day }: { day: Day }) {
     let elevation = 0;
     let ongoingEvents = 0;
     timeslots.forEach((ts) => {
-      const eventsStarting = events.filter(
-        (e) => getHours(e.start) === ts.hour,
-      );
+      // elevation = 0;
+      // ongoingEvents = 0;
+      const eventsStarting = events.filter((e) => isEqual(e.start, ts.date));
 
       if (eventsStarting.length === 1 && eventsStarting[0]) {
         const id = eventsStarting[0].id;
@@ -234,9 +309,10 @@ export default function AgendaView({ day }: { day: Day }) {
   }, [agendaRef]);
 
   return (
-    <div className="flex min-w-[400px] flex-col overflow-hidden rounded border border-white">
-      <div className="p-2">
+    <div className="mb-2 flex min-w-[400px] flex-col overflow-hidden rounded border border-white">
+      <div className="flex justify-between p-2">
         <h2>{day.name}</h2>
+        <span>{freeTime} hours free</span>
       </div>
       <div ref={agendaRef} className="flex flex-1 overflow-y-auto">
         {/* Draw agenda slot headers (shows the time for each slow, displayed on the left or head of slot) */}
@@ -246,8 +322,8 @@ export default function AgendaView({ day }: { day: Day }) {
               key={hour.toISOString()}
               data-timeslot={format(hour, "H")}
               className="flex">
-              <div className="flex h-10 flex-col items-end border-t border-gray-400/30 pr-1">
-                <span className="-mb-1 text-xs">{format(hour, "HH:mm")}</span>
+              <div className="flex h-8 flex-col items-end border-t border-gray-400/30 pr-1">
+                <span className="-mb-1 text-xs">{format(hour, "hh a")}</span>
                 {/* <span className="text-xs text-gray-400">:15</span>
                 <span className="text-xs text-gray-400">:30</span>
                 <span className="text-xs text-gray-400">:45</span> */}
@@ -257,27 +333,29 @@ export default function AgendaView({ day }: { day: Day }) {
         </div>
 
         {/* Draw agenda slots */}
-        <div className="relative flex flex-1 flex-col pr-2">
+        <div className="relative mr-2 flex flex-1 flex-col">
           {hours.map((hour) => (
             <div key={hour.toISOString()} className="flex">
-              <div className="flex h-10 flex-1 items-center justify-center border-t border-gray-400/30"></div>
+              <div className="flex h-8 flex-1 items-center justify-center border-t border-gray-400/30"></div>
             </div>
           ))}
 
           {/* Draw events */}
-          {events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              handleEventUpdate={handleEventUpdate}
-              timeslots={timeslots}
-              calculateHourBasedOnPosition={calculateHourBasedOnPosition}
-              calculatePositionBaseOnHour={calculatePositionBaseOnHour}
-              calculateWidthAndElevationPosition={
-                calculateWidthAndElevationPosition
-              }
-            />
-          ))}
+          {timeslots &&
+            timeslots.length > 0 &&
+            events.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                handleEventUpdate={handleEventUpdate}
+                timeslots={timeslots}
+                calculateHourBasedOnPosition={calculateHourBasedOnPosition}
+                calculatePositionBaseOnHour={calculatePositionBaseOnHour}
+                calculateWidthAndElevationPosition={
+                  calculateWidthAndElevationPosition
+                }
+              />
+            ))}
         </div>
       </div>
     </div>

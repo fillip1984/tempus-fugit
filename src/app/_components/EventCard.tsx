@@ -1,4 +1,11 @@
-import { format, getHours, setHours } from "date-fns";
+import {
+  format,
+  formatDuration,
+  getHours,
+  interval,
+  intervalToDuration,
+  setHours,
+} from "date-fns";
 import { useEffect, useState, type PointerEvent } from "react";
 import { type AgendaEvent, type Timeslot } from "@/types";
 
@@ -49,7 +56,7 @@ export default function EventCard({
     height: 0,
 
     // other props
-    isModalOpen: true,
+    isModalOpen: false,
     isOver: false,
   });
 
@@ -99,11 +106,10 @@ export default function EventCard({
     if (!state.isDragging) {
       return;
     }
-    // console.debug({ event: "Dragging", id: event.id });
 
     const newY = e.clientY - state.originalY + state.lastTranslateY;
 
-    const hour = calculateHourBasedOnPosition(newY);
+    const hour = calculateHourBasedOnPosition(e.pageY);
     if (hour !== undefined && getHours(event.start) !== hour) {
       const change = getHours(event.start) - hour;
       handleEventUpdate(
@@ -205,7 +211,7 @@ export default function EventCard({
 
   return (
     <div
-      className="absolute rounded border border-l-[6px] bg-green-300 bg-green-400/20 px-2 text-black"
+      className="absolute rounded border border-l-[6px] bg-green-400/60 px-2 text-black"
       style={{
         transform: `translateY(${state.translateY - CARD_GAP}px)`,
         cursor: `${state.isDragging ? "grabbing" : "grab"}`,
@@ -238,8 +244,15 @@ export default function EventCard({
       <div className="relative h-full w-full">
         <h3 className="-mb-2">{event.description}</h3>
         <span className="text-xs">
-          {format(event.start, "h aa")} - {format(event.end, "h aa")} (
-          {getHours(event.end) - getHours(event.start)} hrs)
+          {format(event.start, "h:mm a")} - {format(event.end, "h:mm a")}
+        </span>
+        <span className="mx-2 text-xs">
+          (
+          {formatDuration(
+            intervalToDuration(interval(event.start, event.end)),
+            { format: ["hours"] },
+          )}
+          )
         </span>
         {state.isModalOpen && <span>Modal Time!</span>}
         {state.isOver && (
